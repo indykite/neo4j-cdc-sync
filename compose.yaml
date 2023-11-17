@@ -9,7 +9,7 @@ services:
       - 7687:7687
       - 7474:7474
     volumes:
-      - ./scripts:/scripts
+      - ./migrations:/migrations
   neo4j-sink:
     image: neo4j:5.13-enterprise
     environment:
@@ -18,5 +18,7 @@ services:
     ports:
       - 7787:7687
       - 7574:7474
+    volumes:
+      - ./migrations:/migrations
 volumes:
-  scripts:
+  migrations:
