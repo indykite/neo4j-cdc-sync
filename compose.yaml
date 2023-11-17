@@ -1,0 +1,22 @@
+services:
+  neo4j-source:
+    image: neo4j:5.13-enterprise
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_db_tx__log_rotation_retention__policy=2 days 10G
+    ports:
+      - 7687:7687
+      - 7474:7474
+    volumes:
+      - ./scripts:/scripts
+  neo4j-sink:
+    image: neo4j:5.13-enterprise
+    environment:
+      - NEO4J_ACCEPT_LICENSE_AGREEMENT=yes
+      - NEO4J_AUTH=neo4j/password
+    ports:
+      - 7787:7687
+      - 7574:7474
+volumes:
+  scripts:
