@@ -24,8 +24,11 @@ import (
 func (s *CDCService) applyChange(ctx context.Context, record *neo4j.Record) error {
 	m := asMap(record)
 	event := m["event"].(map[string]any)
-
 	jsonOutput, err := json.Marshal(asMap(record))
+	changeId, ok := m["id"].(string)
+	if !ok {
+		return fmt.Errorf("No change identifier in change event.")
+	}
 	if err != nil {
 		return fmt.Errorf("unable to jsonify record: %w", err)
 	}
@@ -58,6 +61,11 @@ func (s *CDCService) applyChange(ctx context.Context, record *neo4j.Record) erro
 		session := s.sink.NewSession(ctx, neo4j.SessionConfig{DatabaseName: s.database})
 		_, err := session.ExecuteWrite(ctx, func(tx neo4j.ManagedTransaction) (any, error) {
 			_, err := tx.Run(ctx, cypher, params)
+			if err != nil {
+				return nil, err
+			}
+
+			_, err = storeChangeIdentifier(ctx, tx, changeId)
 			if err != nil {
 				return nil, err
 			}
@@ -98,8 +106,18 @@ func asMap(record *neo4j.Record) map[string]any {
 	return result
 }
 
-// createRelPattern returns a cypher string for a single relationship
-// where the relationship itself may have optional attributes to merge on
+const storeChangeIdentifierCypher = `
+MERGE (c:ChangeIdentifier)
+SET c.value = $identifier
+`
+
+func storeChangeIdentifier(ctx context.Context, tx neo4j.ManagedTransaction, identifier string) (neo4j.ManagedTransaction, error) {
+	_, err := tx.Run(ctx, storeChangeIdentifierCypher, map[string]any{"identifier": identifier})
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
+}
 
 // nodePattern returns a cypher string for a single node
 // along with the parameters necessary to create it given the output of a CDC record.
@@ -455,7 +473,7 @@ func (s *CDCService) Start(ctx context.Context) error {
 			s.waitGroup.Done()
 		}()
 
-		timer := time.NewTimer(0 * time.Millisecond)
+		timer := time.NewTimer(5 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():

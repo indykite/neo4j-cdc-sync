@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"os"
 	"os/signal"
 	"strconv"
@@ -15,6 +16,21 @@ import (
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"github.com/spf13/cobra"
 )
+
+type Node struct {
+	id     string
+	labels []string
+}
+
+type Relationship struct {
+	id      string
+	relType string
+}
+type Params struct {
+	source Node
+	target Node
+	rel    Relationship
+}
 
 const query = `
 UNWIND $triples AS triple
@@ -31,10 +47,36 @@ func generateUUID(seenUUIDs map[string]struct{}) string {
 	return uuid
 }
 
+var labels []string = []string{"Cat", "Mouse", "Dog", "Car", "Home"}
+
+func getRandomLabels(n int) []string {
+	if n > len(labels) {
+		panic("Asked for more labels than there are in the labels array")
+	}
+	if n == len(labels) {
+		return labels
+	}
+	ret := make([]string, n)
+	sample := rand.Perm(len(labels))
+	for i := 0; i < n; i++ {
+		ret = append(ret, labels[sample[i]])
+	}
+	return ret
+}
+
 func generateData(n int) []map[string]string {
 	triples := make([]map[string]string, 0, n)
 	uuidSet := make(map[string]struct{}, n)
 	for i := 0; i < n; i++ {
+		n := rand.Intn(2)
+		source := Node{
+			id:     generateUUID(uuidSet),
+			labels: getRandomLabels(n),
+		}
+		target := Node{
+			id:     generateUUID(uuidSet),
+			labels: getRandomLabels(n),
+		}
 		triples = append(triples, map[string]string{
 			"source": generateUUID(uuidSet),
 			"target": generateUUID(uuidSet),
